@@ -1,0 +1,38 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python tests
+        shell: bash
+        run: python3 tests/test_dev_hardware.py
+
+      - name: Build unsigned Release for iphoneos
+        shell: bash
+        run: |
+          xcodebuild -project DevHardware.xcodeproj -target DevHardware -configuration Release -sdk iphoneos ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO | tail -n 20
+
+      - name: Verify platform is iOS device
+        shell: bash
+        run: |
+          otool -l build/Release-iphoneos/DevHardware.app/DevHardware | grep -E "platform 2"
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          mkdir Payload
+          cp -R build/Release-iphoneos/DevHardware.app Payload/
+          zip -qr DevHardware-Unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DevHardware-Unsigned-IPA
+          path: DevHardware-Unsigned.ipa
